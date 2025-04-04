@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerador de Memes do Patrão</title>
+</head>
+<body style="background: #1a1a1a; font-family: Arial; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px;">
+    <h1 style="color: #ff69b4;">Gerador de Memes Fodão</h1>
+    
+    <div style="display: flex; gap: 20px; max-width: 1000px; width: 100%;">
+        <div style="flex: 1;">
+            <label for="imageInput" style="display: inline-block; background: #ff69b4; color: #fff; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 10px;">Carregar Imagem</label>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <input type="text" id="topText" placeholder="Texto de cima" style="width: 100%; padding: 5px; margin-bottom: 10px;">
+            <input type="text" id="bottomText" placeholder="Texto de baixo" style="width: 100%; padding: 5px; margin-bottom: 10px;">
+            <select id="fontSelect" style="width: 100%; padding: 5px; margin-bottom: 10px;">
+                <option value="Impact">Impact</option>
+                <option value="Arial">Arial</option>
+                <option value="Comic Sans MS">Comic Sans</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Lobster">Lobster</option>
+                <option value="Montserrat">Montserrat</option>
+            </select>
+            <input type="color" id="colorPicker" value="#ffffff" style="margin-bottom: 10px;">
+            <select id="filterSelect" style="width: 100%; padding: 5px; margin-bottom: 10px;">
+                <option value="none">Sem filtro</option>
+                <option value="grayscale(100%)">Preto e Branco</option>
+                <option value="sepia(100%)">Sépia</option>
+                <option value="blur(5px)">Desfocado</option>
+                <option value="brightness(150%)">Brilho</option>
+            </select>
+            <button onclick="downloadMeme()" style="background: #ff69b4; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px;">Baixar Meme</button>
+            <h3 style="margin-top: 20px;">Templates</h3>
+            <button onclick="loadTemplate('https://i.imgur.com/8fZQb.jpg')" style="background: #666; color: #fff; border: none; padding: 5px; margin: 5px; cursor: pointer;">Distracted Boyfriend</button>
+            <button onclick="loadTemplate('https://i.imgur.com/5y5z5.jpg')" style="background: #666; color: #fff; border: none; padding: 5px; margin: 5px; cursor: pointer;">Drake Hotline</button>
+            <button onclick="loadTemplate('https://i.imgur.com/8p5z5.jpg')" style="background: #666; color: #fff; border: none; padding: 5px; margin: 5px; cursor: pointer;">Success Kid</button>
+        </div>
+        
+        <div style="flex: 1; display: flex; justify-content: center;">
+            <canvas id="memeCanvas" width="500" height="500" style="max-width: 100%; border: 1px solid #fff;"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('memeCanvas');
+        const ctx = canvas.getContext('2d');
+        let img = new Image();
+        img.crossOrigin = "Anonymous"; // Para carregar imagens de URLs externas
+
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    img.src = event.target.result;
+                    img.onload = drawMeme;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('topText').addEventListener('input', drawMeme);
+        document.getElementById('bottomText').addEventListener('input', drawMeme);
+        document.getElementById('fontSelect').addEventListener('change', drawMeme);
+        document.getElementById('colorPicker').addEventListener('input', drawMeme);
+        document.getElementById('filterSelect').addEventListener('change', drawMeme);
+
+        function loadTemplate(url) {
+            img.src = url;
+            img.onload = drawMeme;
+        }
+
+        function drawMeme() {
+            const topText = document.getElementById('topText').value.toUpperCase();
+            const bottomText = document.getElementById('bottomText').value.toUpperCase();
+            const font = document.getElementById('fontSelect').value;
+            const color = document.getElementById('colorPicker').value;
+            const filter = document.getElementById('filterSelect').value;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (img.src) {
+                const aspect = img.width / img.height;
+                canvas.height = canvas.width / aspect;
+                ctx.filter = filter;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                ctx.filter = 'none'; // Reset filter pra texto não ser afetado
+            }
+
+            ctx.font = `bold 40px ${font}`;
+            ctx.fillStyle = color;
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.textAlign = 'center';
+
+            // Texto de cima
+            wrapText(ctx, topText, canvas.width / 2, 50, canvas.width - 20, 50);
+
+            // Texto de baixo
+            wrapText(ctx, bottomText, canvas.width / 2, canvas.height - 20, canvas.width - 20, 50, true);
+        }
+
+        function wrapText(context, text, x, y, maxWidth, lineHeight, bottom = false) {
+            const words = text.split(' ');
+            let line = '';
+            let lines = [];
+
+            for (let word of words) {
+                const testLine = line + word + ' ';
+                const metrics = context.measureText(testLine);
+                if (metrics.width > maxWidth && line !== '') {
+                    lines.push(line.trim());
+                    line = word + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line.trim());
+
+            if (bottom) {
+                y -= (lines.length - 1) * lineHeight; // Ajusta pra subir o texto de baixo
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                context.fillText(lines[i], x, y + (i * lineHeight));
+                context.strokeText(lines[i], x, y + (i * lineHeight));
+            }
+        }
+
+        function downloadMeme() {
+            const link = document.createElement('a');
+            link.download = 'meme-do-patrao.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
